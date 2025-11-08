@@ -89,70 +89,35 @@ async def summarize_youtube_video(video_url: str) -> str:
         return None
 
 
-def split_message(text: str, max_length: int = 4096) -> list[str]:
+def split_message(text: str, max_length: int = 4000) -> list[str]:
     """Split a message into chunks that fit within Telegram's message limit."""
     if len(text) <= max_length:
         return [text]
     
     chunks = []
-    current_chunk = ""
+    remaining = text
     
-    # Split by paragraphs first (double newlines)
-    paragraphs = text.split('\n\n')
-    
-    for paragraph in paragraphs:
-        # If adding this paragraph would exceed the limit, save current chunk
-        separator = '\n\n' if current_chunk else ''
-        test_chunk = current_chunk + separator + paragraph
+    while len(remaining) > max_length:
+        # Try to split at a newline first
+        split_pos = remaining.rfind('\n', 0, max_length)
         
-        if len(test_chunk) > max_length:
-            if current_chunk:
-                chunks.append(current_chunk)
-                current_chunk = paragraph
-            else:
-                # Paragraph itself is too long, split by sentences
-                # Split by sentence endings (period, exclamation, question mark followed by space)
-                sentences = re.split(r'([.!?]\s+)', paragraph)
-                # Recombine sentences with their punctuation
-                combined_sentences = []
-                for i in range(0, len(sentences), 2):
-                    if i + 1 < len(sentences):
-                        combined_sentences.append(sentences[i] + sentences[i + 1])
-                    elif sentences[i]:
-                        combined_sentences.append(sentences[i])
-                
-                for sentence in combined_sentences:
-                    separator = '. ' if current_chunk and not current_chunk.endswith(('.', '!', '?')) else ''
-                    test_sentence = current_chunk + separator + sentence
-                    if len(test_sentence) > max_length:
-                        if current_chunk:
-                            chunks.append(current_chunk)
-                            current_chunk = sentence
-                        else:
-                            # Sentence itself is too long, split by words
-                            words = sentence.split(' ')
-                            for word in words:
-                                separator = ' ' if current_chunk else ''
-                                test_word = current_chunk + separator + word
-                                if len(test_word) > max_length:
-                                    if current_chunk:
-                                        chunks.append(current_chunk)
-                                        current_chunk = word
-                                    else:
-                                        # Word is too long, force split
-                                        while len(word) > max_length:
-                                            chunks.append(word[:max_length])
-                                            word = word[max_length:]
-                                        current_chunk = word
-                                else:
-                                    current_chunk = test_word
-                    else:
-                        current_chunk = test_sentence
-        else:
-            current_chunk = test_chunk
+        # If no newline found, try to split at a space (word boundary)
+        if split_pos == -1:
+            split_pos = remaining.rfind(' ', 0, max_length)
+        
+        # If still no good split point, force split at max_length
+        if split_pos == -1:
+            split_pos = max_length
+        
+        # Extract chunk and update remaining
+        chunk = remaining[:split_pos].rstrip()
+        if chunk:
+            chunks.append(chunk)
+        remaining = remaining[split_pos:].lstrip()
     
-    if current_chunk:
-        chunks.append(current_chunk)
+    # Add remaining text as final chunk
+    if remaining:
+        chunks.append(remaining)
     
     return chunks
 
@@ -209,10 +174,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             # Prepare the full message text
             full_message = f"📹 *Video Summary:*\n\n{summary}"
             
-            # Split message if it's too long (accounting for header)
-            # Telegram limit is 4096, but we need to account for Markdown formatting
-            max_chunk_length = 3000  # Leave some buffer for formatting
-            message_chunks = split_message(full_message, max_chunk_length)
+            # Split message if it's too long (accounting for Markdown formatting)
+            # Telegram limit is 4096, use 4000 to leave buffer for formatting
+            message_chunks = split_message(full_message, max_length=4000)
             
             # Edit the first message with the first chunk
             if message_chunks:
