@@ -85,7 +85,7 @@ async def summarize_youtube_video(video_url: str) -> str:
         )
         return response.text
     except Exception as e:
-        logger.error(f"Error summarizing video: {e}")
+        logger.error(f"Error summarizing video: {e}", exc_info=True)
         return None
 
 
@@ -226,7 +226,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 'Sorry, I could not generate a summary for this video. Please try again later.'
             )
     except Exception as e:
-        logger.error(f"Error processing video: {e}")
+        logger.error(f"Error processing video: {e}", exc_info=True)
         await processing_msg.edit_text(
             'An error occurred while processing the video. Please check if the URL is valid and try again later.'
         )
