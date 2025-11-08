@@ -211,7 +211,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             
             # Split message if it's too long (accounting for header)
             # Telegram limit is 4096, but we need to account for Markdown formatting
-            max_chunk_length = 4000  # Leave some buffer for formatting
+            max_chunk_length = 3000  # Leave some buffer for formatting
             message_chunks = split_message(full_message, max_chunk_length)
             
             # Edit the first message with the first chunk
